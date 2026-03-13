@@ -18,3 +18,13 @@ output "lambda_role_arn" {
   value       = aws_iam_role.lambda_role.arn
 }
 
+output "lambda_processor_arn" {
+  description = "ARN of the document processing Lambda function (Phase 2)."
+  value       = aws_lambda_function.processor.arn
+}
+
+output "lambda_processor_name" {
+  description = "Name of the document processing Lambda function (Phase 2)."
+  value       = aws_lambda_function.processor.function_name
+}
+

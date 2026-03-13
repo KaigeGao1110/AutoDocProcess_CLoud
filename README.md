@@ -1,31 +1,26 @@
-## AI Document Processing – Infrastructure (Phase 1)
+## AI Document Processing – Terraform (this branch)
 
-This repository contains the Phase 1 infrastructure for a serverless AI document processing pipeline on AWS, managed entirely with Terraform.
+**This branch (`terraform`)** contains infrastructure (Terraform) and a copy of `function/` used to package the Lambda. For Lambda-only changes, use the `function` branch; merge into `main` to keep both in sync.
 
-Phase 1 focuses on foundational resources only:
-- S3 upload bucket for raw documents
-- S3 processed bucket for future outputs
-- DynamoDB table for document processing results
-- IAM role and policy for the future Lambda processor
+---
 
-Later phases will add Lambda functions, Textract integration, API Gateway, and a frontend.
+Phase 1 + Phase 2: S3, DynamoDB, IAM, and the document-processing Lambda (S3 trigger → Textract → DynamoDB). Phase 3 will add API Gateway and a frontend.
 
 ### Prerequisites
 
-- AWS account with permissions to create S3, DynamoDB, and IAM resources
+- AWS account with permissions to create S3, DynamoDB, IAM, and Lambda resources
 - Terraform version **1.5 or later**
 - Configured AWS credentials (for example via `aws configure`, environment variables, or an assumed role)
 
-### Project Structure
+### Project Structure (on this branch)
 
-- `terraform/` – Terraform configuration for Phase 1
-  - `provider.tf` – Terraform and AWS provider configuration
-  - `variables.tf` – Shared input variables (region, project name, environment)
-  - `s3.tf` – S3 buckets for uploads and processed documents
-  - `dynamodb.tf` – DynamoDB table for document results
-  - `iam.tf` – IAM role and policy for the Lambda processor
-  - `outputs.tf` – Useful outputs (bucket names, table name, Lambda role ARN)
-  - `terraform.tfvars.example` – Example variable values for local use
+- `terraform/` – Terraform configuration (Phase 1 + Phase 2)
+  - `provider.tf` – Terraform, AWS, and archive provider
+  - `variables.tf`, `s3.tf`, `dynamodb.tf`, `iam.tf` – Phase 1
+  - `lambda.tf` – Lambda function, S3 event trigger, permission (packages `../function`)
+  - `outputs.tf` – Bucket names, table name, Lambda role ARN, Lambda processor ARN/name
+  - `terraform.tfvars.example` – Example variable values
+- `function/` – Lambda source (packaged by `terraform/lambda.tf`; for edits prefer the `function` branch)
 
 ### Getting Started
 
