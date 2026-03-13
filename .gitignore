@@ -1,0 +1,19 @@
+# Local/IDE
+.cursor/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+
+# Terraform (state and local overrides live in terraform/.gitignore)
+# Keep root ignore for non-terraform clutter above

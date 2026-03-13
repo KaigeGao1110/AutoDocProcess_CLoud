@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document results</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 1rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.25rem; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+    li a { color: #06c; text-decoration: none; }
+    li a:hover { text-decoration: underline; }
+    .detail { background: #f8f8f8; padding: 1rem; border-radius: 6px; margin-top: 1rem; white-space: pre-wrap; font-size: 0.9rem; }
+    .error { color: #c00; }
+    .meta { color: #666; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>Document results</h1>
+  <p class="meta">Loaded from API. List below; click a document to view details.</p>
+  <div id="list"></div>
+  <div id="detail"></div>
+  <script src="config.js"></script>
+  <script>
+    (function () {
+      var listEl = document.getElementById('list');
+      var detailEl = document.getElementById('detail');
+
+      function showError(msg) {
+        listEl.innerHTML = '<p class="error">' + msg + '</p>';
+      }
+
+      function renderList(items) {
+        if (!items || items.length === 0) {
+          listEl.innerHTML = '<p>No results yet. Upload a document to the S3 upload bucket to process it.</p>';
+          return;
+        }
+        var html = '<ul>';
+        items.forEach(function (item) {
+          var id = item.document_id || '';
+          var status = item.status || '';
+          html += '<li><a href="#" data-id="' + id + '">' + id + '</a> <span class="meta">' + status + '</span></li>';
+        });
+        html += '</ul>';
+        listEl.innerHTML = html;
+        listEl.querySelectorAll('a[data-id]').forEach(function (a) {
+          a.addEventListener('click', function (e) {
+            e.preventDefault();
+            loadOne(a.getAttribute('data-id'));
+          });
+        });
+      }
+
+      function loadOne(documentId) {
+        detailEl.innerHTML = 'Loading…';
+        var base = (window.API_BASE_URL || '').replace(/\/$/, '');
+        fetch(base + '/results/' + encodeURIComponent(documentId))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.error) {
+              detailEl.innerHTML = '<p class="error">' + (data.error || 'Not found') + '</p>';
+              return;
+            }
+            detailEl.innerHTML = '<h2>Detail: ' + (data.document_id || documentId) + '</h2><div class="detail">' + JSON.stringify(data, null, 2) + '</div>';
+          })
+          .catch(function (err) {
+            detailEl.innerHTML = '<p class="error">Request failed: ' + err.message + '</p>';
+          });
+      }
+
+      var base = (window.API_BASE_URL || '').replace(/\/$/, '');
+      if (!base) {
+        showError('API base URL not set (config.js).');
+        return;
+      }
+      fetch(base + '/results?limit=50')
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.items) renderList(data.items);
+          else showError('Unexpected response.');
+        })
+        .catch(function (err) {
+          showError('Failed to load list: ' + err.message);
+        });
+    })();
+  </script>
+</body>
+</html>
