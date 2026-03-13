@@ -1,7 +1,0 @@
-.terraform/
-terraform.tfstate
-terraform.tfstate.*
-crash.log
-*.tfvars
-*.tfvars.json
-
