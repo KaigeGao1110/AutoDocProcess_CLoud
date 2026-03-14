@@ -3,57 +3,416 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document results</title>
+  <title>Document Processing</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 1rem auto; padding: 0 1rem; }
-    h1 { font-size: 1.25rem; }
-    .demo-notice { background: #e8f4fc; border: 1px solid #06c; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 1rem; font-size: 0.9rem; }
-    .upload-box { border: 2px dashed #ccc; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: #fafafa; }
-    .upload-box.dragover { border-color: #06c; background: #f0f8ff; }
-    .upload-box input[type="file"] { margin: 0.5rem 0; }
-    .upload-box button { padding: 0.4rem 0.8rem; cursor: pointer; }
-    .upload-status { margin-top: 0.5rem; font-size: 0.9rem; color: #666; }
-    ul { list-style: none; padding: 0; }
-    li { padding: 0.6rem 0; border-bottom: 1px solid #eee; line-height: 1.4; }
-    li a { color: #06c; text-decoration: none; }
-    li a:hover { text-decoration: underline; }
-    .list-meta { font-size: 0.8rem; color: #666; margin-left: 0.25rem; }
-    .detail { margin-top: 1rem; }
-    .detail pre { background: #f8f8f8; padding: 1rem; border-radius: 6px; white-space: pre-wrap; font-size: 0.85rem; max-height: 50vh; overflow: auto; margin: 0.5rem 0 0 0; }
-    .detail-kv { margin-top: 0.5rem; }
-    .detail-kv dt { font-weight: 600; margin-top: 0.5rem; color: #333; }
-    .detail-kv dd { margin: 0.15rem 0 0 0.5rem; }
-    .error { color: #c00; }
-    .meta { color: #666; font-size: 0.85rem; }
+    /* Clean, soft UI – not rigid */
+    :root {
+      --primary: #1a73e8;
+      --primary-hover: #1557b0;
+      --primary-light: #e8f0fe;
+      --primary-muted: rgba(26, 115, 232, 0.08);
+      --success: #1e8e3e;
+      --success-bg: #e6f4ea;
+      --error: #d93025;
+      --error-bg: #fce8e6;
+      --warning: #f9ab00;
+      --warning-bg: #fef7e0;
+      --gray-50: #fafafa;
+      --gray-100: #f1f3f4;
+      --gray-200: #e8eaed;
+      --gray-400: #9aa0a6;
+      --gray-500: #5f6368;
+      --gray-700: #202124;
+      --radius: 20px;
+      --radius-sm: 10px;
+      --radius-lg: 28px;
+      --shadow: 0 2px 12px rgba(32, 33, 36, 0.06);
+      --shadow-soft: 0 4px 24px rgba(32, 33, 36, 0.08);
+      --space-xs: 0.25rem;
+      --space-sm: 0.5rem;
+      --space-md: 1rem;
+      --space-lg: 1.5rem;
+      --space-xl: 2rem;
+      --space-2xl: 2.5rem;
+    }
+    body {
+      font-family: "Google Sans", Roboto, system-ui, -apple-system, sans-serif;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: var(--space-2xl) var(--space-lg);
+      background: linear-gradient(180deg, var(--gray-50) 0%, #fff 12rem);
+      color: var(--gray-700);
+      line-height: 1.6;
+    }
+
+    /* Hero / intro */
+    .page-header {
+      margin-bottom: var(--space-xl);
+      padding-bottom: var(--space-lg);
+    }
+    .page-header h1 {
+      font-size: 1.75rem;
+      font-weight: 500;
+      margin: 0 0 var(--space-sm) 0;
+      letter-spacing: -0.03em;
+      color: var(--gray-700);
+    }
+    .page-header .intro {
+      font-size: 0.9375rem;
+      color: var(--gray-500);
+      margin: 0 0 var(--space-md) 0;
+      max-width: 32em;
+      line-height: 1.6;
+    }
+    .demo-notice {
+      display: inline-block;
+      font-size: 0.8125rem;
+      color: var(--gray-500);
+      background: var(--gray-100);
+      padding: 0.4rem 0.75rem;
+      border-radius: var(--radius);
+      margin: 0;
+    }
+    .demo-notice strong { color: var(--gray-700); }
+
+    /* Cards – soft shadow, rounded */
+    .card {
+      background: #fff;
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg) var(--space-lg);
+      margin-bottom: var(--space-lg);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+    .card-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--gray-500);
+      margin: 0 0 var(--space-md) 0;
+      letter-spacing: 0.02em;
+    }
+
+    /* Assistant card: main chat, secondary upload */
+    .assistant-card { margin-bottom: var(--space-xl); }
+    .assistant-card .card-title { margin-bottom: var(--space-sm); }
+    .assistant-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      min-height: 44px;
+      padding: var(--space-sm) var(--space-md) var(--space-sm) var(--space-lg);
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      box-shadow: none;
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .assistant-bar:hover { box-shadow: var(--shadow-soft); border-color: var(--gray-200); }
+    .assistant-bar.dragover { box-shadow: var(--shadow-soft); border-color: var(--primary); background: var(--primary-muted); }
+    .assistant-bar.uploading { pointer-events: none; opacity: 0.9; }
+    .assistant-bar.uploading .assistant-bar-inner { position: relative; }
+    .assistant-bar.uploading .assistant-bar-inner::after {
+      content: "";
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 20px; height: 20px;
+      margin: -10px 0 0 -10px;
+      border: 2px solid var(--gray-200);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .assistant-bar-inner { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-sm); }
+    .assistant-bar .main-input {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.4rem 0;
+      border: none;
+      background: transparent;
+      font-size: 0.9375rem;
+      color: var(--gray-700);
+    }
+    .assistant-bar .main-input::placeholder { color: var(--gray-500); }
+    .assistant-bar .main-input:focus { outline: none; }
+    .assistant-bar .file-name { flex: 1; min-width: 0; font-size: 0.9375rem; color: var(--gray-700); }
+    .assistant-bar input[type="file"] { position: absolute; width: 0; height: 0; opacity: 0; }
+    .btn-choose {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      background: #fff;
+      color: var(--gray-700);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-choose:hover { background: var(--gray-100); border-color: var(--gray-200); }
+    .btn-send, .btn-upload {
+      padding: 0.5rem 1.25rem;
+      cursor: pointer;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    .btn-send:hover:not(:disabled), .btn-upload:hover:not(:disabled) { background: var(--primary-hover); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .btn-send:active:not(:disabled), .btn-upload:active:not(:disabled) { transform: scale(0.98); }
+    .btn-send:disabled, .btn-upload:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-cancel {
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      background: transparent;
+      color: var(--gray-500);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+    }
+    .btn-cancel:hover { background: var(--gray-100); color: var(--gray-700); }
+    .assistant-messages {
+      margin-top: var(--space-md);
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      min-height: 0;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .assistant-msg { max-width: 85%; padding: var(--space-sm) var(--space-md); border-radius: var(--radius-sm); font-size: 0.875rem; line-height: 1.4; }
+    .assistant-msg.user { align-self: flex-end; background: var(--primary-light); color: var(--gray-700); }
+    .assistant-msg.assistant { align-self: flex-start; background: var(--gray-100); color: var(--gray-700); }
+    .assistant-msg.loading { align-self: flex-start; color: var(--gray-500); }
+    .upload-status {
+      margin-top: var(--space-sm);
+      padding-left: 2px;
+      font-size: 0.8125rem;
+      min-height: 1.25em;
+    }
+    .upload-status.success { color: var(--success); }
+    .upload-status.error { color: var(--error); }
+    .mode-chat { display: flex; flex: 1; min-width: 0; align-items: center; gap: var(--space-sm); }
+    .mode-upload { display: none; flex: 1; min-width: 0; align-items: center; gap: var(--space-sm); }
+    .assistant-bar.has-file .mode-chat { display: none; }
+    .assistant-bar.has-file .mode-upload { display: flex; }
+
+    /* List – clean, minimal */
+    .list-card .card-title { margin-bottom: var(--space-md); }
+    .list-loading { color: var(--gray-500); font-size: 0.875rem; }
+    .result-list { list-style: none; padding: 0; margin: 0; }
+    .result-list li {
+      padding: var(--space-sm) var(--space-sm);
+      margin: 0 calc(-1 * var(--space-sm));
+      border-bottom: none;
+      line-height: 1.5;
+      transition: background 0.15s;
+      border-radius: var(--radius-sm);
+    }
+    .result-list li:hover { background: var(--gray-100); }
+    .result-list a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.9375rem;
+    }
+    .result-list a:hover { text-decoration: underline; }
+    .result-list .list-meta { font-size: 0.75rem; color: var(--gray-500); margin-top: 2px; display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+    .status-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 10px;
+      font-size: 0.6875rem;
+      font-weight: 500;
+    }
+    .status-badge.processed { background: var(--success-bg); color: var(--success); }
+    .status-badge.failed { background: var(--error-bg); color: var(--error); }
+    .status-badge.processing { background: var(--warning-bg); color: var(--warning); }
+    .status-badge.pending { background: var(--gray-100); color: var(--gray-500); }
+    .list-empty { color: var(--gray-500); padding: var(--space-xl) 0; text-align: center; font-size: 0.875rem; }
+    .list-empty p { margin: 0 0 var(--space-xs) 0; }
+    .list-empty .hint { font-size: 0.8125rem; }
+
+    /* Detail */
+    .detail-card { margin-top: 0; }
+    .detail-back { display: inline-block; margin-bottom: var(--space-md); color: var(--primary); text-decoration: none; font-size: 0.875rem; }
+    .detail-back:hover { text-decoration: underline; }
+    .detail h2 { font-size: 1rem; font-weight: 400; margin: 0 0 var(--space-sm) 0; word-break: break-all; }
+    .detail .meta { font-size: 0.8125rem; color: var(--gray-500); margin: 0 0 var(--space-md) 0; }
+    .detail-kv { margin-top: var(--space-md); }
+    .detail-kv dt { font-weight: 500; margin-top: var(--space-sm); color: var(--gray-700); font-size: 0.875rem; }
+    .detail-kv dd { margin: var(--space-xs) 0 0 var(--space-sm); padding-left: 0; font-size: 0.875rem; }
+    .detail summary { cursor: pointer; font-weight: 500; margin-top: var(--space-md); font-size: 0.875rem; }
+    .detail pre {
+      background: var(--gray-100);
+      padding: var(--space-md);
+      border-radius: var(--radius);
+      white-space: pre-wrap;
+      font-family: "Roboto Mono", ui-monospace, monospace;
+      font-size: 0.8125rem;
+      max-height: 50vh;
+      overflow: auto;
+      margin: var(--space-sm) 0 0 0;
+    }
+    .detail .error { color: var(--error); }
+    .detail-loading { color: var(--gray-500); padding: var(--space-lg); font-size: 0.875rem; }
+
+    /* Toast – pill style */
+    .toast-container { position: fixed; top: var(--space-md); right: var(--space-md); z-index: 1000; display: flex; flex-direction: column; gap: var(--space-sm); max-width: 320px; }
+    .toast {
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      box-shadow: var(--shadow);
+      animation: toastIn 0.2s ease;
+    }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
+    .toast.success { background: var(--success-bg); color: var(--success); }
+    .toast.error { background: var(--error-bg); color: var(--error); }
+    .toast.info { background: var(--primary-light); color: var(--primary); }
+
   </style>
 </head>
 <body>
-  <h1>Document results</h1>
-  <p class="demo-notice">Demo: You can upload up to 20 times per hour. For trying document processing only.</p>
-  <div class="upload-box" id="uploadBox">
-    <label for="fileInput">Choose a file (PDF or image) to upload:</label>
-    <input type="file" id="fileInput" accept=".pdf,image/*" />
-    <button type="button" id="uploadBtn">Upload</button>
-    <div class="upload-status" id="uploadStatus"></div>
+  <header class="page-header">
+    <h1>Document Processing</h1>
+    <p class="intro">
+      Upload a PDF or image and get structured text and form data extracted automatically.
+      Use the assistant below to ask questions about this product, or drag a file to process it and view results in the list.
+    </p>
+    <p class="demo-notice" role="status"><strong>Demo</strong> — Up to 20 uploads per hour. PDF or images only.</p>
+  </header>
+
+  <div class="card assistant-card">
+    <p class="card-title">Product assistant</p>
+    <div class="assistant-bar" id="assistantBar" role="region" aria-label="Ask or upload">
+      <div class="assistant-bar-inner">
+        <div class="mode-chat">
+          <input type="text" class="main-input" id="mainInput" placeholder="Ask about this product or drag a file to upload" aria-label="Ask or type message" />
+          <button type="button" id="sendBtn" class="btn-send" aria-label="Send message">Send</button>
+          <button type="button" id="chooseFileBtn" class="btn-choose" aria-label="Choose file to upload">Upload file</button>
+        </div>
+        <div class="mode-upload">
+          <span class="file-name" id="fileLabel"></span>
+          <button type="button" id="uploadBtn" class="btn-upload" aria-label="Upload">Upload</button>
+          <button type="button" id="cancelFileBtn" class="btn-cancel" aria-label="Cancel">Cancel</button>
+        </div>
+        <input type="file" id="fileInput" accept=".pdf,image/*" aria-describedby="uploadStatus" />
+      </div>
+    </div>
+    <div class="assistant-messages" id="assistantMessages"></div>
+    <div class="upload-status" id="uploadStatus" aria-live="polite" aria-atomic="true"></div>
   </div>
-  <p class="meta">Recent demo results (last 10):</p>
-  <div id="list"></div>
-  <div id="detail"></div>
+
+  <div class="card list-card">
+    <p class="card-title">Recent results (last 10)</p>
+    <div id="list"></div>
+  </div>
+
+  <div class="card detail-card" id="detailCard" style="display: none;">
+    <div id="detail"></div>
+  </div>
+
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
   <script src="config.js"></script>
   <script>
     (function () {
       var listEl = document.getElementById('list');
       var detailEl = document.getElementById('detail');
+      var detailCard = document.getElementById('detailCard');
       var fileInput = document.getElementById('fileInput');
+      var fileLabel = document.getElementById('fileLabel');
+      var chooseFileBtn = document.getElementById('chooseFileBtn');
       var uploadBtn = document.getElementById('uploadBtn');
+      var cancelFileBtn = document.getElementById('cancelFileBtn');
       var uploadStatus = document.getElementById('uploadStatus');
-      var uploadBox = document.getElementById('uploadBox');
+      var assistantBar = document.getElementById('assistantBar');
+      var mainInput = document.getElementById('mainInput');
+      var sendBtn = document.getElementById('sendBtn');
+      var assistantMessages = document.getElementById('assistantMessages');
+      var toastContainer = document.getElementById('toastContainer');
+
+      function setFileMode(hasFile) {
+        if (hasFile && fileInput.files && fileInput.files[0]) {
+          fileLabel.textContent = fileInput.files[0].name;
+          assistantBar.classList.add('has-file');
+        } else {
+          fileLabel.textContent = '';
+          assistantBar.classList.remove('has-file');
+          fileInput.value = '';
+        }
+      }
+      chooseFileBtn.addEventListener('click', function () { fileInput.click(); });
+      fileInput.addEventListener('change', function () { setFileMode(!!(fileInput.files && fileInput.files[0])); });
+      cancelFileBtn.addEventListener('click', function () { setFileMode(false); setUploadStatus(''); });
       var base = (window.API_BASE_URL || '').replace(/\/$/, '');
       if (base && base.indexOf('http') !== 0) base = '';
 
+      function addChatMessage(text, role) {
+        var div = document.createElement('div');
+        div.className = 'assistant-msg ' + (role || 'assistant');
+        div.textContent = text;
+        assistantMessages.appendChild(div);
+        assistantMessages.scrollTop = assistantMessages.scrollHeight;
+      }
+      sendBtn.addEventListener('click', function sendChat() {
+        var msg = (mainInput.value || '').trim();
+        if (!msg) return;
+        if (!base) {
+          addChatMessage('API not configured. Cannot use the assistant.', 'assistant');
+          return;
+        }
+        mainInput.value = '';
+        addChatMessage(msg, 'user');
+        var loadingEl = document.createElement('div');
+        loadingEl.className = 'assistant-msg assistant loading';
+        loadingEl.textContent = '…';
+        assistantMessages.appendChild(loadingEl);
+        assistantMessages.scrollTop = assistantMessages.scrollHeight;
+        sendBtn.disabled = true;
+        fetch(base + '/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            loadingEl.remove();
+            addChatMessage(data.reply || data.error || 'No reply.', 'assistant');
+          })
+          .catch(function (err) {
+            loadingEl.remove();
+            addChatMessage('Request failed: ' + (err.message || 'Please try again.'), 'assistant');
+          })
+          .finally(function () { sendBtn.disabled = false; });
+      });
+      mainInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') sendBtn.click();
+      });
+
       function setUploadStatus(msg, isError) {
         uploadStatus.textContent = msg;
-        uploadStatus.className = 'upload-status' + (isError ? ' error' : '');
+        uploadStatus.className = 'upload-status' + (isError ? ' error' : (msg && msg.indexOf('Done') === 0 ? ' success' : ''));
+      }
+
+      function setUploading(loading) {
+        if (loading) assistantBar.classList.add('uploading');
+        else assistantBar.classList.remove('uploading');
+      }
+
+      function showToast(msg, type) {
+        type = type || 'info';
+        var el = document.createElement('div');
+        el.className = 'toast ' + type;
+        el.textContent = msg;
+        toastContainer.appendChild(el);
+        setTimeout(function () {
+          if (el.parentNode) el.parentNode.removeChild(el);
+        }, 4000);
       }
 
       var listQuery = 'limit=10&prefix=demo';
@@ -69,7 +428,7 @@
       }
 
       function showError(msg) {
-        listEl.innerHTML = '<p class="error">' + msg + '</p>';
+        listEl.innerHTML = '<p class="list-loading error">' + (msg || 'Failed to load.') + '</p>';
       }
 
       function formatShortDate(isoStr) {
@@ -90,19 +449,28 @@
         return id.slice(0, len) + '\u2026';
       }
 
+      function statusClass(s) {
+        s = (s || '').toLowerCase();
+        if (s === 'processed') return 'processed';
+        if (s === 'failed') return 'failed';
+        if (s === 'processing') return 'processing';
+        return 'pending';
+      }
+
       function renderList(items) {
         if (!items || items.length === 0) {
-          listEl.innerHTML = '<p>No results yet. Upload a document above to try.</p>';
+          listEl.innerHTML = '<div class="list-empty"><p>No results yet.</p><p class="hint">Upload a document above to try.</p></div>';
           return;
         }
-        var html = '<ul>';
+        var html = '<ul class="result-list">';
         items.forEach(function (item) {
           var id = item.document_id || '';
           var status = item.status || '';
           var timeStr = formatShortDate(item.upload_time || '');
           var label = truncateId(id);
           var escapedId = id.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          html += '<li><a href="#" data-id="' + escapedId + '" title="' + escapedId + '">' + label + '</a> <span class="list-meta">' + status + (timeStr ? ' \u2022 ' + timeStr : '') + '</span></li>';
+          var sc = statusClass(status);
+          html += '<li><a href="#" data-id="' + escapedId + '" title="' + escapedId + '">' + label + '</a><div class="list-meta"><span class="status-badge ' + sc + '">' + (status || 'pending') + '</span>' + (timeStr ? '<span>' + timeStr + '</span>' : '') + '</div></li>';
         });
         html += '</ul>';
         listEl.innerHTML = html;
@@ -119,8 +487,9 @@
         var status = data.status || '';
         var timeStr = formatShortDate(data.upload_time || '');
         var extracted = data.extracted_data;
-        var html = '<h2>Detail: ' + truncateId(id, 40) + '</h2>';
-        html += '<p class="meta">' + status + (timeStr ? ' \u2022 ' + timeStr : '') + '</p>';
+        var html = '<a href="#" class="detail-back" id="detailBack">← Back to list</a>';
+        html += '<h2>' + truncateId(id, 40) + '</h2>';
+        html += '<p class="meta"><span class="status-badge ' + statusClass(status) + '">' + status + '</span>' + (timeStr ? ' \u2022 ' + timeStr : '') + '</p>';
         if (extracted && typeof extracted === 'object' && Object.keys(extracted).length > 0) {
           html += '<dl class="detail-kv">';
           for (var k in extracted) {
@@ -132,10 +501,20 @@
         }
         html += '<details class="detail"><summary>Raw JSON</summary><pre>' + JSON.stringify(data, null, 2).replace(/</g, '&lt;') + '</pre></details>';
         detailEl.innerHTML = html;
+        detailCard.style.display = 'block';
+        var backBtn = document.getElementById('detailBack');
+        if (backBtn) {
+          backBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            detailCard.style.display = 'none';
+            detailEl.innerHTML = '';
+          });
+        }
       }
 
       function loadOne(documentId) {
-        detailEl.innerHTML = 'Loading…';
+        detailCard.style.display = 'block';
+        detailEl.innerHTML = '<p class="detail-loading">Loading…</p>';
         fetch(base + '/results/' + encodeURIComponent(documentId))
           .then(function (r) { return r.json(); })
           .then(function (data) {
@@ -155,7 +534,10 @@
         intervalMs = intervalMs || 2000;
         function poll() {
           if (Date.now() > deadline) {
+            setUploading(false);
+            setFileMode(false);
             setUploadStatus('Processing timed out. Check the list later.', false);
+            showToast('Processing timed out. Check the list later.', 'error');
             refreshList();
             return;
           }
@@ -163,11 +545,16 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
               if (data.error && data.error !== 'Document not found') {
+                setUploading(false);
+                setFileMode(false);
                 setUploadStatus('Query failed: ' + (data.error || ''), true);
                 return;
               }
               if (data.status === 'processed' || data.status === 'failed') {
+                setUploading(false);
+                setFileMode(false);
                 setUploadStatus('Done.', false);
+                showToast('Processing complete.', 'success');
                 loadOne(documentId);
                 refreshList();
                 return;
@@ -176,10 +563,11 @@
               setTimeout(poll, intervalMs);
             })
             .catch(function (err) {
+              setUploading(false);
+              setFileMode(false);
               setUploadStatus('Poll failed: ' + err.message, true);
             });
         }
-        // Delay first poll so processor has time to write; reduces 404s in Network tab
         setTimeout(poll, 2000);
       }
 
@@ -187,6 +575,7 @@
         var file = fileInput.files && fileInput.files[0];
         if (!file) {
           setUploadStatus('Please choose a file first.', true);
+          showToast('Please choose a file first.', 'error');
           return;
         }
         if (!base) {
@@ -194,6 +583,7 @@
           return;
         }
         setUploadStatus('Requesting upload URL…', false);
+        setUploading(true);
         uploadBtn.disabled = true;
         fetch(base + '/demo/upload-url', {
           method: 'POST',
@@ -205,11 +595,16 @@
           })
           .then(function (res) {
             if (res.status === 429) {
+              setUploading(false);
+              setFileMode(false);
               setUploadStatus('Upload limit reached for this hour. Try again later.', true);
+              showToast('Upload limit reached. Try again later.', 'error');
               uploadBtn.disabled = false;
               return;
             }
             if (!res.ok || !res.data.upload_url || !res.data.document_id) {
+              setUploading(false);
+              setFileMode(false);
               setUploadStatus(res.data.error || 'Failed to get upload URL', true);
               uploadBtn.disabled = false;
               return;
@@ -222,32 +617,36 @@
               headers: { 'Content-Type': putContentType }
             }).then(function (putRes) {
               if (!putRes.ok) throw new Error('Upload failed: ' + putRes.status);
-              setUploadStatus('Upload complete. Waiting for processing…', false);
+              setUploadStatus('Waiting for processing…', false);
               pollResult(res.data.document_id);
             });
           })
           .catch(function (err) {
+            setUploading(false);
+            setFileMode(false);
             setUploadStatus(err.message || 'Request failed', true);
+            showToast(err.message || 'Request failed', 'error');
           })
           .finally(function () {
             uploadBtn.disabled = false;
           });
       });
 
-      uploadBox.addEventListener('dragover', function (e) {
+      assistantBar.addEventListener('dragover', function (e) {
         e.preventDefault();
-        uploadBox.classList.add('dragover');
+        assistantBar.classList.add('dragover');
       });
-      uploadBox.addEventListener('dragleave', function () {
-        uploadBox.classList.remove('dragover');
+      assistantBar.addEventListener('dragleave', function () {
+        assistantBar.classList.remove('dragover');
       });
-      uploadBox.addEventListener('drop', function (e) {
+      assistantBar.addEventListener('drop', function (e) {
         e.preventDefault();
-        uploadBox.classList.remove('dragover');
+        assistantBar.classList.remove('dragover');
         var files = e.dataTransfer && e.dataTransfer.files;
         if (files && files[0]) {
           fileInput.files = files;
-          setUploadStatus('Selected: ' + files[0].name, false);
+          setFileMode(true);
+          setUploadStatus('', false);
         }
       });
 
@@ -255,6 +654,7 @@
         showError('API base URL not set (config.js).');
         return;
       }
+      listEl.innerHTML = '<p class="list-loading">Loading…</p>';
       fetch(base + '/results?' + listQuery)
         .then(function (r) { return r.json(); })
         .then(function (data) {

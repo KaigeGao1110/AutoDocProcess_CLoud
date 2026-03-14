@@ -50,6 +50,11 @@ resource "aws_iam_policy" "api_lambda_policy" {
         Resource = "${aws_s3_bucket.upload_bucket.arn}/demo/*"
       },
       {
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
+        Resource = "arn:aws:bedrock:${var.aws_region}::foundation-model/*"
+      },
+      {
         Effect = "Allow"
         Action = [
           "logs:CreateLogGroup",
@@ -85,6 +90,7 @@ resource "aws_lambda_function" "api" {
       UPLOAD_BUCKET             = aws_s3_bucket.upload_bucket.id
       DEMO_QUOTA_TABLE          = aws_dynamodb_table.demo_upload_quota.name
       DEMO_UPLOAD_LIMIT_PER_HOUR = "20"
+      BEDROCK_MODEL_ID          = "zai.glm-4.7-flash"
     }
   }
 
