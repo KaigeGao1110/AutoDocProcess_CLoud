@@ -19,7 +19,7 @@ resource "aws_iam_role" "api_lambda_role" {
 
 resource "aws_iam_policy" "api_lambda_policy" {
   name        = "${var.project_name}-api-lambda-policy-${var.environment}"
-  description = "Permissions for the API Lambda to read DynamoDB and write logs."
+  description = "Permissions for the API Lambda to read DynamoDB, write logs, demo upload (S3 presign + quota table)."
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -31,6 +31,23 @@ resource "aws_iam_policy" "api_lambda_policy" {
           "dynamodb:Scan"
         ]
         Resource = aws_dynamodb_table.document_results.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:ConditionCheckItem"
+        ]
+        Resource = aws_dynamodb_table.demo_upload_quota.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject"
+        ]
+        Resource = "${aws_s3_bucket.upload_bucket.arn}/demo/*"
       },
       {
         Effect = "Allow"
@@ -63,7 +80,11 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      RESULTS_TABLE = aws_dynamodb_table.document_results.name
+      RESULTS_TABLE             = aws_dynamodb_table.document_results.name
+      ALLOWED_ORIGIN            = "*"
+      UPLOAD_BUCKET             = aws_s3_bucket.upload_bucket.id
+      DEMO_QUOTA_TABLE          = aws_dynamodb_table.demo_upload_quota.name
+      DEMO_UPLOAD_LIMIT_PER_HOUR = "20"
     }
   }
 

@@ -4,7 +4,9 @@
 
 ---
 
-Phase 1 + Phase 2: S3, DynamoDB, IAM, and the document-processing Lambda (S3 trigger → Textract → DynamoDB). Phase 3 adds API Gateway (HTTP API), an API Lambda for querying results, and a static frontend (S3 + CloudFront, HTTPS).
+Phase 1 + Phase 2: S3, DynamoDB, IAM, and the document-processing Lambda (S3 trigger → Textract → DynamoDB). Phase 3 adds API Gateway (HTTP API), an API Lambda for querying results, a static frontend (S3 + CloudFront, HTTPS), and a **demo upload** flow (presigned URL + per-IP hourly quota) with rate limiting.
+
+**Demo & abuse prevention (public repo):** This repository contains only code and examples. Deployed demo URLs and API endpoints are not committed. The demo enforces rate limits (API Gateway throttling), per-IP hourly upload quotas, and CORS restricted to the frontend origin. Do not abuse demo endpoints.
 
 ### Prerequisites
 
@@ -16,17 +18,17 @@ Phase 1 + Phase 2: S3, DynamoDB, IAM, and the document-processing Lambda (S3 tri
 
 - `terraform/` – Terraform configuration (Phase 1 + Phase 2 + Phase 3)
   - `provider.tf` – Terraform, AWS, and archive provider
-  - `variables.tf`, `s3.tf`, `dynamodb.tf`, `iam.tf` – Phase 1
+  - `variables.tf`, `s3.tf`, `dynamodb.tf` (results + `demo_upload_quota` with TTL), `iam.tf` – Phase 1
   - `lambda.tf` – Processor Lambda, S3 event trigger, permission (packages `../function`)
   - `api_lambda.tf` – API Lambda (Phase 3), IAM, same `../function` package, handler `api.lambda_handler`
-  - `api_gateway.tf` – HTTP API, routes `GET /results` and `GET /results/{document_id}`
+  - `api_gateway.tf` – HTTP API, routes `GET /results`, `GET /results/{document_id}`, `POST /demo/upload-url`; stage throttling and CORS for frontend only
   - `frontend.tf` – Static frontend: S3 bucket, CloudFront distribution (HTTPS only), uploads `frontend/`
   - `outputs.tf` – Bucket names, table name, Lambda ARNs, **api_endpoint**, **frontend_url** (Phase 3)
   - `terraform.tfvars.example` – Example variable values
 - `frontend/` – Static site (Phase 3): `index.html`, `config.js.tpl` (API URL injected by Terraform)
 - `function/` – Lambda source (processor + API handler)
   - `processor.py` – S3-triggered document processing (Phase 2)
-  - `api.py` – HTTP API handler for listing/getting results (Phase 3)
+  - `api.py` – HTTP API handler: list/get results and `POST /demo/upload-url` (presigned S3 URL + quota check)
 
 ### Getting Started
 
@@ -110,7 +112,34 @@ terraform output -raw frontend_url
 # Open that URL in a browser (e.g. https://xxxx.cloudfront.net)
 ```
 
-The page lists document results from the API and lets you open a single result. The API base URL is injected into `config.js` at apply time from `api_endpoint`.
+The page lists document results and provides a **demo upload** area: choose a file (PDF or image), click Upload; the app requests a presigned URL (subject to per-IP hourly quota), uploads to S3, then polls until processing completes and shows the result. Demo upload is limited (e.g. 3 per IP per hour) and the API is throttled. The API base URL is injected into `config.js` at apply time from `api_endpoint`.
+
+### Customer test steps (how to try the demo)
+
+1. **Get the frontend URL**  
+   Use the HTTPS URL provided by the deployer, or after deploying locally run:
+   ```bash
+   cd terraform
+   terraform output -raw frontend_url
+   ```
+   Open that URL in a browser (e.g. `https://xxxx.cloudfront.net`).
+
+2. **View the list**  
+   The page loads the list of processed documents. If there is no data yet, it will show “No results yet. Upload a document above to try.”
+
+3. **Upload a document**  
+   - In the upload area, click to choose a file or drag and drop into the box.  
+   - Supported: PDF or images (e.g. .jpg, .png).  
+   - Click **Upload**.  
+   - The page will show: requesting upload URL → uploading → upload complete, waiting for processing → processing… → done.
+
+4. **View results**  
+   - When processing finishes, the parsed result (e.g. form key–value pairs as JSON) appears below.  
+   - The list refreshes and the new document appears; click an item in the list to view its details again.
+
+5. **Limits**  
+   - Each IP can upload at most **3** times per hour. Beyond that you’ll see “Upload limit reached for this hour. Try again later.”  
+   - If you send too many requests, the API may throttle; wait a moment and retry.
 
 ### Cleaning Up
 

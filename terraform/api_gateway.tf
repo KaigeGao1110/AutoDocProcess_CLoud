@@ -6,8 +6,9 @@ resource "aws_apigatewayv2_api" "http" {
   description   = "Document results API (Phase 3)"
 
   cors_configuration {
+    # Use * so browser requests from any origin (e.g. CloudFront) do not get "Failed to fetch"
     allow_origins = ["*"]
-    allow_methods = ["GET", "OPTIONS"]
+    allow_methods = ["GET", "POST", "OPTIONS"]
     allow_headers = ["Content-Type"]
   }
 }
@@ -31,10 +32,21 @@ resource "aws_apigatewayv2_route" "get_result" {
   target    = "integrations/${aws_apigatewayv2_integration.api_lambda.id}"
 }
 
+resource "aws_apigatewayv2_route" "demo_upload_url" {
+  api_id    = aws_apigatewayv2_api.http.id
+  route_key = "POST /demo/upload-url"
+  target    = "integrations/${aws_apigatewayv2_integration.api_lambda.id}"
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.http.id
   name        = "$default"
   auto_deploy = true
+
+  default_route_settings {
+    throttling_burst_limit = 50
+    throttling_rate_limit = 20
+  }
 }
 
 # Allow API Gateway to invoke the API Lambda

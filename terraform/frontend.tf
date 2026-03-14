@@ -107,8 +107,9 @@ resource "aws_s3_object" "frontend_index" {
 }
 
 resource "aws_s3_object" "frontend_config" {
-  bucket       = aws_s3_bucket.frontend.id
-  key          = "config.js"
-  content      = templatefile("${path.module}/../frontend/config.js.tpl", { api_endpoint = aws_apigatewayv2_stage.default.invoke_url })
-  content_type = "application/javascript"
+  bucket        = aws_s3_bucket.frontend.id
+  key           = "config.js"
+  content       = templatefile("${path.module}/../frontend/config.js.tpl", { api_endpoint = aws_apigatewayv2_stage.default.invoke_url })
+  content_type  = "application/javascript"
+  cache_control = "no-cache, no-store, must-revalidate"
 }
