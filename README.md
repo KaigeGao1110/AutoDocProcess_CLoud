@@ -11,7 +11,7 @@ Phase 1 + Phase 2: S3, DynamoDB, IAM, and the document-processing Lambda (S3 tri
 **Demo & abuse prevention (public repo):** This repository contains only code and examples. Deployed demo URLs and API endpoints are not committed. The demo enforces rate limits (API Gateway throttling), per-IP hourly upload quotas, and CORS restricted to the frontend origin. Do not abuse demo endpoints.
 
 **Try the demo (customer testing):**  
-→ **https://d2hk37in5jqz95.cloudfront.net** — Ask the product assistant or upload a PDF/image to see document processing results (up to 20 uploads per IP per hour).
+→ **www.kaigegao666.com** — Ask the product assistant or upload a PDF/image to see document processing results (up to 20 uploads per IP per hour).
 
 ### Prerequisites
 
@@ -124,7 +124,7 @@ The page includes a short **product intro**, a **Product assistant** bar (main: 
 ### Customer test steps (how to try the demo)
 
 1. **Open the demo**  
-   **Live demo:** [https://d2hk37in5jqz95.cloudfront.net](https://d2hk37in5jqz95.cloudfront.net)  
+   **Live demo:** www.kaigegao666.com  
    Or, if you deploy yourself, run `terraform output -raw frontend_url` in the `terraform/` directory and open that URL in a browser.
 
 2. **Use the assistant or upload**  
