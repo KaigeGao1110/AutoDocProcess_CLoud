@@ -38,6 +38,12 @@ resource "aws_apigatewayv2_route" "demo_upload_url" {
   target    = "integrations/${aws_apigatewayv2_integration.api_lambda.id}"
 }
 
+resource "aws_apigatewayv2_route" "chat" {
+  api_id    = aws_apigatewayv2_api.http.id
+  route_key = "POST /chat"
+  target    = "integrations/${aws_apigatewayv2_integration.api_lambda.id}"
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.http.id
   name        = "$default"

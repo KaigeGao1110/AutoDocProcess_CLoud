@@ -1,6 +1,6 @@
 """
 API Lambda: HTTP API (API Gateway v2) handler for querying document results from DynamoDB.
-Routes: GET /results, GET /results/{document_id}, POST /demo/upload-url.
+Routes: GET /results, GET /results/{document_id}, POST /demo/upload-url, POST /chat.
 """
 import json
 import logging
@@ -22,6 +22,19 @@ DEMO_QUOTA_TABLE = os.environ.get("DEMO_QUOTA_TABLE", "")
 DEMO_UPLOAD_LIMIT_PER_HOUR = int(os.environ.get("DEMO_UPLOAD_LIMIT_PER_HOUR", "3") or "3")
 PRESIGN_EXPIRY_SECONDS = 300
 QUOTA_TTL_SECONDS = 7200
+
+BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "zai.glm-4.7-flash")
+
+PRODUCT_SYSTEM_PROMPT = """You are the in-product assistant for "Document Processing" (AI document processing demo). You answer ONLY questions about this product.
+
+Product scope:
+- This is a demo app: users upload PDF or images; the backend processes them (e.g. with AWS Textract) and stores results. Users can list and view results in the UI.
+- How to use: choose a file or drag-and-drop, click Upload; wait for processing; view the list of results and click an item to see details (extracted data and raw JSON).
+- Supported formats: PDF and images (e.g. JPG, PNG).
+- Limits: demo allows a limited number of uploads per IP per hour (e.g. 20). Beyond that, the user sees an error like "Upload limit reached".
+- API: GET /results (list), GET /results/{document_id} (one result), POST /demo/upload-url (get presigned URL for upload). Frontend is static (S3/CloudFront).
+
+If the user asks about anything unrelated to this product (other apps, general knowledge, company policies, etc.), reply briefly that you only answer questions about this Document Processing product, and suggest they ask about upload, limits, results, or how to use the demo."""
 
 
 def _cors_headers():
@@ -47,6 +60,13 @@ def lambda_handler(event, context):
             return handle_demo_upload_url(event)
         except Exception as e:
             logger.exception("Demo upload-url error: %s", e)
+            return response(500, {"error": "Internal server error"})
+
+    if method == "POST" and path == "/chat":
+        try:
+            return handle_chat(event)
+        except Exception as e:
+            logger.exception("Chat error: %s", e)
             return response(500, {"error": "Internal server error"})
 
     if method != "GET":
@@ -211,6 +231,38 @@ def _parse_limit(value):
         return max(0, min(n, 100)) if n > 0 else None
     except (TypeError, ValueError):
         return None
+
+
+def handle_chat(event):
+    """POST /chat: call Bedrock Converse with product-only system prompt, return assistant reply."""
+    try:
+        body = {}
+        if event.get("body"):
+            body = json.loads(event["body"]) if isinstance(event["body"], str) else event["body"]
+    except json.JSONDecodeError:
+        body = {}
+    message = (body.get("message") or "").strip()
+    if not message:
+        return response(400, {"error": "message is required"})
+
+    client = boto3.client("bedrock-runtime")
+    try:
+        resp = client.converse(
+            modelId=BEDROCK_MODEL_ID,
+            messages=[{"role": "user", "content": [{"text": message}]}],
+            system=[{"text": PRODUCT_SYSTEM_PROMPT}],
+            inferenceConfig={"maxTokens": 1024},
+        )
+    except ClientError as e:
+        logger.exception("Bedrock invoke error: %s", e)
+        return response(502, {"error": "Model unavailable", "reply": "The assistant is temporarily unavailable. Please try again."})
+
+    output = resp.get("output", {})
+    message_out = output.get("message", {})
+    content = message_out.get("content", [])
+    reply = "".join(c.get("text", "") for c in content if isinstance(c, dict) and "text" in c)
+    reply = (reply or "I can only answer questions about this Document Processing product.").strip()
+    return response(200, {"reply": reply})
 
 
 def response(status_code, body):
