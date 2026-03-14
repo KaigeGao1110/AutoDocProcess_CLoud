@@ -1,0 +1,26 @@
+# Local/IDE
+.cursor/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+
+# Generated frontend config (contains API URL at deploy time; only .tpl is in repo)
+frontend/config.js
+
+# Debug / local
+debug-*.log
+*.tfplan
+
+# Terraform (state and local overrides live in terraform/.gitignore)
+# Keep root ignore for non-terraform clutter above

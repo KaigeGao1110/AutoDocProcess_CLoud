@@ -2,6 +2,9 @@
 terraform.tfstate
 terraform.tfstate.*
 crash.log
-*.tfvars
-*.tfvars.json
+terraform.tfvars
+terraform.tfvars.json
+lambda.zip
+tfplan
+tfplan.*
 

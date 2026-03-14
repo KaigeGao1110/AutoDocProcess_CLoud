@@ -18,3 +18,28 @@ output "lambda_role_arn" {
   value       = aws_iam_role.lambda_role.arn
 }
 
+output "lambda_processor_arn" {
+  description = "ARN of the document processing Lambda function (Phase 2)."
+  value       = aws_lambda_function.processor.arn
+}
+
+output "lambda_processor_name" {
+  description = "Name of the document processing Lambda function (Phase 2)."
+  value       = aws_lambda_function.processor.function_name
+}
+
+output "api_endpoint" {
+  description = "Base URL of the Phase 3 HTTP API (GET /results, GET /results/{document_id})."
+  value       = aws_apigatewayv2_stage.default.invoke_url
+}
+
+output "frontend_url" {
+  description = "HTTPS URL of the static frontend (CloudFront)."
+  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+}
+
+output "frontend_domain" {
+  description = "CloudFront domain name for the frontend."
+  value       = aws_cloudfront_distribution.frontend.domain_name
+}
+

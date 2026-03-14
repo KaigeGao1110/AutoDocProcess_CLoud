@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document results</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 1rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.25rem; }
+    .demo-notice { background: #e8f4fc; border: 1px solid #06c; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 1rem; font-size: 0.9rem; }
+    .upload-box { border: 2px dashed #ccc; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: #fafafa; }
+    .upload-box.dragover { border-color: #06c; background: #f0f8ff; }
+    .upload-box input[type="file"] { margin: 0.5rem 0; }
+    .upload-box button { padding: 0.4rem 0.8rem; cursor: pointer; }
+    .upload-status { margin-top: 0.5rem; font-size: 0.9rem; color: #666; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 0.6rem 0; border-bottom: 1px solid #eee; line-height: 1.4; }
+    li a { color: #06c; text-decoration: none; }
+    li a:hover { text-decoration: underline; }
+    .list-meta { font-size: 0.8rem; color: #666; margin-left: 0.25rem; }
+    .detail { margin-top: 1rem; }
+    .detail pre { background: #f8f8f8; padding: 1rem; border-radius: 6px; white-space: pre-wrap; font-size: 0.85rem; max-height: 50vh; overflow: auto; margin: 0.5rem 0 0 0; }
+    .detail-kv { margin-top: 0.5rem; }
+    .detail-kv dt { font-weight: 600; margin-top: 0.5rem; color: #333; }
+    .detail-kv dd { margin: 0.15rem 0 0 0.5rem; }
+    .error { color: #c00; }
+    .meta { color: #666; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>Document results</h1>
+  <p class="demo-notice">Demo: You can upload up to 20 times per hour. For trying document processing only.</p>
+  <div class="upload-box" id="uploadBox">
+    <label for="fileInput">Choose a file (PDF or image) to upload:</label>
+    <input type="file" id="fileInput" accept=".pdf,image/*" />
+    <button type="button" id="uploadBtn">Upload</button>
+    <div class="upload-status" id="uploadStatus"></div>
+  </div>
+  <p class="meta">Recent demo results (last 10):</p>
+  <div id="list"></div>
+  <div id="detail"></div>
+  <script src="config.js"></script>
+  <script>
+    (function () {
+      var listEl = document.getElementById('list');
+      var detailEl = document.getElementById('detail');
+      var fileInput = document.getElementById('fileInput');
+      var uploadBtn = document.getElementById('uploadBtn');
+      var uploadStatus = document.getElementById('uploadStatus');
+      var uploadBox = document.getElementById('uploadBox');
+      var base = (window.API_BASE_URL || '').replace(/\/$/, '');
+      if (base && base.indexOf('http') !== 0) base = '';
+
+      function setUploadStatus(msg, isError) {
+        uploadStatus.textContent = msg;
+        uploadStatus.className = 'upload-status' + (isError ? ' error' : '');
+      }
+
+      var listQuery = 'limit=10&prefix=demo';
+
+      function refreshList() {
+        if (!base) return;
+        fetch(base + '/results?' + listQuery)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.items) renderList(data.items);
+          })
+          .catch(function () {});
+      }
+
+      function showError(msg) {
+        listEl.innerHTML = '<p class="error">' + msg + '</p>';
+      }
+
+      function formatShortDate(isoStr) {
+        if (!isoStr) return '';
+        try {
+          var d = new Date(isoStr);
+          var m = d.toLocaleDateString('en-US', { month: 'short' });
+          var day = d.getDate();
+          var h = d.getHours();
+          var min = ('0' + d.getMinutes()).slice(-2);
+          return m + ' ' + day + ', ' + h + ':' + min;
+        } catch (e) { return ''; }
+      }
+
+      function truncateId(id, len) {
+        len = len || 24;
+        if (!id || id.length <= len) return id;
+        return id.slice(0, len) + '\u2026';
+      }
+
+      function renderList(items) {
+        if (!items || items.length === 0) {
+          listEl.innerHTML = '<p>No results yet. Upload a document above to try.</p>';
+          return;
+        }
+        var html = '<ul>';
+        items.forEach(function (item) {
+          var id = item.document_id || '';
+          var status = item.status || '';
+          var timeStr = formatShortDate(item.upload_time || '');
+          var label = truncateId(id);
+          var escapedId = id.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          html += '<li><a href="#" data-id="' + escapedId + '" title="' + escapedId + '">' + label + '</a> <span class="list-meta">' + status + (timeStr ? ' \u2022 ' + timeStr : '') + '</span></li>';
+        });
+        html += '</ul>';
+        listEl.innerHTML = html;
+        listEl.querySelectorAll('a[data-id]').forEach(function (a) {
+          a.addEventListener('click', function (e) {
+            e.preventDefault();
+            loadOne(a.getAttribute('data-id'));
+          });
+        });
+      }
+
+      function renderDetail(data) {
+        var id = data.document_id || '';
+        var status = data.status || '';
+        var timeStr = formatShortDate(data.upload_time || '');
+        var extracted = data.extracted_data;
+        var html = '<h2>Detail: ' + truncateId(id, 40) + '</h2>';
+        html += '<p class="meta">' + status + (timeStr ? ' \u2022 ' + timeStr : '') + '</p>';
+        if (extracted && typeof extracted === 'object' && Object.keys(extracted).length > 0) {
+          html += '<dl class="detail-kv">';
+          for (var k in extracted) {
+            if (Object.prototype.hasOwnProperty.call(extracted, k)) {
+              html += '<dt>' + String(k).replace(/</g, '&lt;') + '</dt><dd>' + String(extracted[k]).replace(/</g, '&lt;') + '</dd>';
+            }
+          }
+          html += '</dl>';
+        }
+        html += '<details class="detail"><summary>Raw JSON</summary><pre>' + JSON.stringify(data, null, 2).replace(/</g, '&lt;') + '</pre></details>';
+        detailEl.innerHTML = html;
+      }
+
+      function loadOne(documentId) {
+        detailEl.innerHTML = 'Loading…';
+        fetch(base + '/results/' + encodeURIComponent(documentId))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.error) {
+              detailEl.innerHTML = '<p class="error">' + (data.error || 'Not found') + '</p>';
+              return;
+            }
+            renderDetail(data);
+          })
+          .catch(function (err) {
+            detailEl.innerHTML = '<p class="error">Request failed: ' + err.message + '</p>';
+          });
+      }
+
+      function pollResult(documentId, maxWaitMs, intervalMs) {
+        var deadline = Date.now() + (maxWaitMs || 60000);
+        intervalMs = intervalMs || 2000;
+        function poll() {
+          if (Date.now() > deadline) {
+            setUploadStatus('Processing timed out. Check the list later.', false);
+            refreshList();
+            return;
+          }
+          fetch(base + '/results/' + encodeURIComponent(documentId))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              if (data.error && data.error !== 'Document not found') {
+                setUploadStatus('Query failed: ' + (data.error || ''), true);
+                return;
+              }
+              if (data.status === 'processed' || data.status === 'failed') {
+                setUploadStatus('Done.', false);
+                loadOne(documentId);
+                refreshList();
+                return;
+              }
+              setUploadStatus('Processing…', false);
+              setTimeout(poll, intervalMs);
+            })
+            .catch(function (err) {
+              setUploadStatus('Poll failed: ' + err.message, true);
+            });
+        }
+        // Delay first poll so processor has time to write; reduces 404s in Network tab
+        setTimeout(poll, 2000);
+      }
+
+      uploadBtn.addEventListener('click', function () {
+        var file = fileInput.files && fileInput.files[0];
+        if (!file) {
+          setUploadStatus('Please choose a file first.', true);
+          return;
+        }
+        if (!base) {
+          setUploadStatus('API not configured. Check config.js and reload.', true);
+          return;
+        }
+        setUploadStatus('Requesting upload URL…', false);
+        uploadBtn.disabled = true;
+        fetch(base + '/demo/upload-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: file.name, content_type: file.type || 'application/octet-stream' })
+        })
+          .then(function (r) {
+            return r.json().then(function (data) { return { ok: r.ok, status: r.status, data: data }; });
+          })
+          .then(function (res) {
+            if (res.status === 429) {
+              setUploadStatus('Upload limit reached for this hour. Try again later.', true);
+              uploadBtn.disabled = false;
+              return;
+            }
+            if (!res.ok || !res.data.upload_url || !res.data.document_id) {
+              setUploadStatus(res.data.error || 'Failed to get upload URL', true);
+              uploadBtn.disabled = false;
+              return;
+            }
+            setUploadStatus('Uploading…', false);
+            var putContentType = res.data.content_type || file.type || 'application/octet-stream';
+            return fetch(res.data.upload_url, {
+              method: 'PUT',
+              body: file,
+              headers: { 'Content-Type': putContentType }
+            }).then(function (putRes) {
+              if (!putRes.ok) throw new Error('Upload failed: ' + putRes.status);
+              setUploadStatus('Upload complete. Waiting for processing…', false);
+              pollResult(res.data.document_id);
+            });
+          })
+          .catch(function (err) {
+            setUploadStatus(err.message || 'Request failed', true);
+          })
+          .finally(function () {
+            uploadBtn.disabled = false;
+          });
+      });
+
+      uploadBox.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        uploadBox.classList.add('dragover');
+      });
+      uploadBox.addEventListener('dragleave', function () {
+        uploadBox.classList.remove('dragover');
+      });
+      uploadBox.addEventListener('drop', function (e) {
+        e.preventDefault();
+        uploadBox.classList.remove('dragover');
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files[0]) {
+          fileInput.files = files;
+          setUploadStatus('Selected: ' + files[0].name, false);
+        }
+      });
+
+      if (!base) {
+        showError('API base URL not set (config.js).');
+        return;
+      }
+      fetch(base + '/results?' + listQuery)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.items) renderList(data.items);
+          else showError('Unexpected response.');
+        })
+        .catch(function (err) {
+          showError('Failed to load list: ' + err.message);
+        });
+    })();
+  </script>
+</body>
+</html>
