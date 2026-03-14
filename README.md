@@ -8,6 +8,9 @@ Phase 1 + Phase 2: S3, DynamoDB, IAM, and the document-processing Lambda (S3 tri
 
 **Demo & abuse prevention (public repo):** This repository contains only code and examples. Deployed demo URLs and API endpoints are not committed. The demo enforces rate limits (API Gateway throttling), per-IP hourly upload quotas, and CORS restricted to the frontend origin. Do not abuse demo endpoints.
 
+**Try the demo (customer testing):**  
+→ **https://d2hk37in5jqz95.cloudfront.net** — Upload a PDF or image to see document processing results (up to 20 uploads per IP per hour).
+
 ### Prerequisites
 
 - AWS account with permissions to create S3, DynamoDB, IAM, Lambda, API Gateway, and CloudFront resources
@@ -112,17 +115,13 @@ terraform output -raw frontend_url
 # Open that URL in a browser (e.g. https://xxxx.cloudfront.net)
 ```
 
-The page lists document results and provides a **demo upload** area: choose a file (PDF or image), click Upload; the app requests a presigned URL (subject to per-IP hourly quota), uploads to S3, then polls until processing completes and shows the result. Demo upload is limited (e.g. 3 per IP per hour) and the API is throttled. The API base URL is injected into `config.js` at apply time from `api_endpoint`.
+The page lists document results and provides a **demo upload** area: choose a file (PDF or image), click Upload; the app requests a presigned URL (subject to per-IP hourly quota), uploads to S3, then polls until processing completes and shows the result. Demo upload is limited (20 per IP per hour) and the API is throttled. The API base URL is injected into `config.js` at apply time from `api_endpoint`.
 
 ### Customer test steps (how to try the demo)
 
-1. **Get the frontend URL**  
-   Use the HTTPS URL provided by the deployer, or after deploying locally run:
-   ```bash
-   cd terraform
-   terraform output -raw frontend_url
-   ```
-   Open that URL in a browser (e.g. `https://xxxx.cloudfront.net`).
+1. **Open the demo**  
+   **Live demo:** [https://d2hk37in5jqz95.cloudfront.net](https://d2hk37in5jqz95.cloudfront.net)  
+   Or, if you deploy yourself, run `terraform output -raw frontend_url` in the `terraform/` directory and open that URL in a browser.
 
 2. **View the list**  
    The page loads the list of processed documents. If there is no data yet, it will show “No results yet. Upload a document above to try.”
@@ -138,7 +137,7 @@ The page lists document results and provides a **demo upload** area: choose a fi
    - The list refreshes and the new document appears; click an item in the list to view its details again.
 
 5. **Limits**  
-   - Each IP can upload at most **3** times per hour. Beyond that you’ll see “Upload limit reached for this hour. Try again later.”  
+   - Each IP can upload at most **20** times per hour. Beyond that you’ll see “Upload limit reached for this hour. Try again later.”  
    - If you send too many requests, the API may throttle; wait a moment and retry.
 
 ### Cleaning Up
