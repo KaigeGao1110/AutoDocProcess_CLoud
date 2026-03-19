@@ -12,6 +12,7 @@ Phase 1 + Phase 2: S3, DynamoDB, IAM, and the document-processing Lambda (S3 tri
 
 **Try the demo (customer testing):**  
 → **www.kaigegao777.com** — Ask the product assistant or upload a PDF/image to see document processing results (up to 20 uploads per IP per hour).
+Watch the demo: https://youtu.be/4q4Ohd5oXhc
 
 ### Prerequisites
 
